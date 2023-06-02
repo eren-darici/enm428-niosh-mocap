@@ -152,7 +152,10 @@ def create_report(frames, actions, filename, total_frames, individual_height, li
     for frame in frames:
         second = math.ceil((frame - 1) / 120)  # Convert frame to seconds and round up
         action = actions[frame]
-        error_frames = len(frames_with_errors.intersection(range((second - 1) * 120 + 1, second * 120 + 1)))
+
+        # Calculate the number of error frames and error percentage for the second
+        frames_in_second = range((second - 1) * 120 + 1, second * 120 + 1)
+        error_frames = len(frames_with_errors.intersection(frames_in_second))
         error_percentage = error_percentages[second - 1]
 
         # Check if the second is already added
@@ -179,10 +182,8 @@ def create_report(frames, actions, filename, total_frames, individual_height, li
     # Save the PDF file
     pdf.output(filename)
 
-    # Open the PDF file using the default PDF viewer
-    subprocess.run(['start', '', filename], shell=True)
-
     print(f"Report generated successfully as {filename}")
+
 
     
 def suggest_actions_to_maintain_li(weight, distances, height, rwls, lis):
@@ -196,7 +197,7 @@ def suggest_actions_to_maintain_li(weight, distances, height, rwls, lis):
                 actions[index] = "Reduce weight or use lifting aid"
 
                 # Check if increasing distance is feasible
-                distance_threshold = math.ceil((height * (rwls[index] / 23.58) ** 4) * 1.2)
+                distance_threshold = math.ceil(height * (rwls[index] / 23.58) * 1.2)
 
                 if distances[index - 1] < distance_threshold:
                     # Increase distance and reduce weight or use lifting aid
@@ -214,9 +215,13 @@ def main(filepath, individual_height, lift_weight):
     mocap_data = load_xlsx(filepath)
 
     distances = distance_from_body(mocap_data)
-
-    rwls, lis = calculate_niosh_lifting(weight=lift_weight, distances=distances, height=individual_height)
-
+    
+    omurga5z = list(mocap_data['omurga5']['Z'])[0]
+    
+    cm_mult = omurga5z / 2
+    height_cm = ((list(mocap_data['top']['Z'])[-1] - list(mocap_data['top']['Z'])[0]) *  cm_mult) / omurga5z
+    rwls, lis = calculate_niosh_lifting(weight=lift_weight, distances=distances, height=height_cm)
+    
     interpretation_lis, errors_lis = interpret_li_values(lis)
 
     for frame, li, interpretation_l in zip(list(mocap_data['Frame#']['Frame#']), list(lis.values()), interpretation_lis):
