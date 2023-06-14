@@ -118,23 +118,36 @@ def create_report(frames, actions, filename, total_frames, individual_height, li
     pdf.set_font('Arial', '', 12)
     pdf.cell(0, 10, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ln=True, align='C')
 
-    # Add individual and lift weight information
+    # Add spacing
+    pdf.ln(10)
+
+    # Set font and style for individual and lift weight information
     pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 10, f"Individual Height: {individual_height} cm", ln=True, align='L')
-    pdf.cell(0, 10, f"Lifted Weight: {lift_weight} kg", ln=True, align='L')
+
+    # Add individual height information
+    pdf.cell(0, 10, '', ln=True, align='L')  # Add spacing
+    pdf.cell(0, 10, f'Individual Height: {individual_height} cm', ln=True, align='L')
+
+    # Add lifted weight information
+    pdf.cell(0, 5, '', ln=True, align='L')  # Add spacing
+    pdf.cell(0, 10, f'Lifted Weight: {lift_weight} kg', ln=True, align='L')
     pdf.ln(10)
 
     # Set font and style for the table
     pdf.set_font('Arial', 'B', 10)
 
     # Create table header
-    pdf.cell(20, 10, 'Second', 1, 0, 'C')
-    pdf.cell(90, 10, 'Action', 1, 0, 'C')
-    pdf.cell(35, 10, 'Error Frames', 1, 0, 'C')
-    pdf.cell(35, 10, '% Error Frames', 1, 1, 'C')
+    header_height = 10
+    pdf.cell(20, header_height, 'Second', 1, 0, 'C')
+    pdf.cell(90, header_height, 'Action', 1, 0, 'C')
+    pdf.cell(35, header_height, 'Error Frames', 1, 0, 'C')
+    pdf.cell(35, header_height, '% Error Frames', 1, 1, 'C')
 
     # Set font for table content
     pdf.set_font('Arial', '', 10)
+
+    # Calculate the approximate height based on font size
+    content_height = max(pdf.font_size, pdf.font_size, pdf.font_size)
 
     # Keep track of unique seconds and frames with errors
     unique_seconds = set()
@@ -165,17 +178,13 @@ def create_report(frames, actions, filename, total_frames, individual_height, li
         # Add the second to the set of unique seconds
         unique_seconds.add(second)
 
-        # Calculate the approximate height based on font size
-        max_height = max(pdf.font_size, pdf.font_size, pdf.font_size)
-
-        pdf.cell(20, max_height, str(second), 1, 0, 'C')
-        pdf.multi_cell(90, max_height, action, 1, 'L')
-        pdf.set_xy(125, pdf.get_y() - max_height)  # Set the position for the next cell
-        pdf.cell(35, max_height, str(error_frames), 1, 0, 'C')
-        pdf.cell(35, max_height, f'{error_percentage:.2f}%', 1, 1, 'C')
+        pdf.cell(20, content_height, str(second), 1, 0, 'C')
+        pdf.cell(90, content_height, action, 1, 0, 'L')
+        pdf.cell(35, content_height, str(error_frames), 1, 0, 'C')
+        pdf.cell(35, content_height, f'{error_percentage:.2f}%', 1, 1, 'C')
 
     # Adjust table position to the center of the page with margin from the logo
-    table_height = len(unique_seconds) * 10
+    table_height = len(unique_seconds) * content_height
     top_margin = (pdf.h - table_height) / 2 - 15  # Adjust top margin based on table height
     pdf.set_y(top_margin)
 
@@ -184,8 +193,6 @@ def create_report(frames, actions, filename, total_frames, individual_height, li
 
     print(f"Report generated successfully as {filename}")
 
-
-    
 def suggest_actions_to_maintain_li(weight, distances, height, rwls, lis):
     actions = {}
 
