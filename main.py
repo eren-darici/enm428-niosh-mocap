@@ -13,22 +13,23 @@ BODY_PARTS = ['sagBilek', 'sagDirsek', 'sagOmuz', 'sagKopr',
 
 BOX_PARTS = ['side1', 'side2', 'top']
 
-DESK = ['sagOn']
+# NOTE: Vicon uses z-up
 
-# Vicon uses z-up
-
+# Load .trc files
 def load_trc(filepath: str):
     mocap_data = TRCData()
     mocap_data.load(filepath)
 
     return mocap_data
 
+# Load .xlsx files
 def load_xlsx(filepath: str):
     mocap_data = pd.read_excel(filepath, header=[0, 1])
     mocap_data = mocap_data.fillna(mocap_data.mean())
 
     return mocap_data
 
+# Calculate distance from body
 def distance_from_body(data):
     distances = []
 
@@ -54,11 +55,12 @@ def distance_from_body(data):
         y_box /= len(BOX_PARTS)
         z_box /= len(BOX_PARTS)
 
-        distance = abs(x_box - x_body) + abs(y_box - y_body) + abs(z_box - z_body)
+        distance = ((x_box - x_body)**2 + (y_box - y_body)**2 + (z_box - z_body)**2)**0.5
         distances.append(distance)
 
     return distances
 
+# Calculate RWL for each frame (aka distances)
 def calculate_rwl(distances, height):
     rwls = []
     for distance in distances:
@@ -66,6 +68,7 @@ def calculate_rwl(distances, height):
         rwls.append(rwl)
     return rwls
 
+# Calculate LI for each frame (aka RWL's)
 def calculate_li(weight, rwls):
     lis = []
     for rwl in rwls:
@@ -73,6 +76,7 @@ def calculate_li(weight, rwls):
         lis.append(li)
     return lis
 
+# Create dictionaries of LI's and RWL's
 def calculate_niosh_lifting(weight, distances, height):
     rwls = calculate_rwl(distances, height)
     lis = calculate_li(weight, rwls)
@@ -80,9 +84,7 @@ def calculate_niosh_lifting(weight, distances, height):
     lis_dict = {i + 1: li for i, li in enumerate(lis)}
     return rwls_dict, lis_dict
 
-
-
-
+# Debug log the LI values
 def interpret_li_values(lis):
     interpretation = []
     errors = []
@@ -101,6 +103,7 @@ def interpret_li_values(lis):
 
     return interpretation, errors
 
+# Create report
 def create_report(frames, actions, filename, total_frames, individual_height, lift_weight):
     pdf = FPDF()
 
@@ -193,6 +196,7 @@ def create_report(frames, actions, filename, total_frames, individual_height, li
 
     print(f"Report generated successfully as {filename}")
 
+# Create suggestions in order to maintain LI
 def suggest_actions_to_maintain_li(weight, distances, height, rwls, lis):
     actions = {}
 
@@ -217,20 +221,23 @@ def suggest_actions_to_maintain_li(weight, distances, height, rwls, lis):
 
     return actions
 
-
+# Main function
 def main(filepath, individual_height, lift_weight):
     mocap_data = load_xlsx(filepath)
 
     distances = distance_from_body(mocap_data)
-    
+
+    # Omurga 5 is the middle of body
     omurga5z = list(mocap_data['omurga5']['Z'])[0]
     
+    # Use omurga 5 for conversion to cm's
     cm_mult = omurga5z / 2
     height_cm = ((list(mocap_data['top']['Z'])[-1] - list(mocap_data['top']['Z'])[0]) *  cm_mult) / omurga5z
     rwls, lis = calculate_niosh_lifting(weight=lift_weight, distances=distances, height=height_cm)
     
     interpretation_lis, errors_lis = interpret_li_values(lis)
-
+		
+    # Debug log
     for frame, li, interpretation_l in zip(list(mocap_data['Frame#']['Frame#']), list(lis.values()), interpretation_lis):
         print(f"At frame {frame}, for weight {lift_weight}kg, LI:{li}, Interpretation: {interpretation_l}")
 
@@ -242,8 +249,9 @@ def main(filepath, individual_height, lift_weight):
     total_frames = len(list(mocap_data['Frame#']['Frame#']))
     create_report(frames_out_of_limit, actions, filename, total_frames, individual_height, lift_weight)
 
-
+# Driver code
 if __name__ == '__main__':
+    # Add arguments
     parser = argparse.ArgumentParser(description='Lifting Analysis Script')
     parser.add_argument('--filepath', type=str, help='Path to the input file')
     parser.add_argument('--height', type=int, help='Individual height in cm')

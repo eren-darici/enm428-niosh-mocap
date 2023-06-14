@@ -1,1 +1,5 @@
-.pdf
+# Ignore venv directory
+venv/
+
+# Ignore PDF files
+*.pdf
